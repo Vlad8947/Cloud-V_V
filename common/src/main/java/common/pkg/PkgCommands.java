@@ -1,0 +1,7 @@
+package common.pkg;
+
+public enum PkgCommands {
+
+    AUTHORIZATION, AUTH_WRONG, AUTH_OK, VERIFICATION, SYSTEM_MESSAGE, DATA, ERROR_ON_SERVER, END
+
+}
