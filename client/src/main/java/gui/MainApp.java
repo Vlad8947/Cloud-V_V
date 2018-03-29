@@ -2,49 +2,53 @@ package gui;
 
 import java.io.IOException;
 
-import common.pkg.PkgCommands;
 import gui.controller.AuthorizationController;
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Scene;
-import javafx.scene.layout.AnchorPane;
 import javafx.scene.layout.BorderPane;
+import javafx.stage.FileChooser;
 import javafx.stage.Stage;
 import client.stream.InitStream;
+
+/**
+ * Класс, запускающий инициализацию подключения к серверу (класс InitStreams) и графический интерфейс.
+ */
 
 public class MainApp extends Application {
 
     private static Stage primaryStage;
     private static Stage authorizationStage;
     private static AuthorizationController authorizationController;
-    private static Scene scene;
-    private static BorderPane rootLayout;
+    private static BorderPane rootLayout, addFilesView, listView;
 
-    private static MainApp mainApp;
+    private static final FileChooser FILE_CHOOSER = new FileChooser();
+
     private static InitStream initStream;
 
-    private boolean authorized;
+    private static boolean isClosed = false;
 
     public static void main(String[] args) {
         launch(args);
-        initStream.close();
+        if(!isClosed) {
+            System.out.println("close");
+            initStream.close();
+        }
     }
 
     @Override
     public void start(Stage primaryStage) {
-        this.primaryStage = primaryStage;
-        this.primaryStage.setTitle("Cloud VV");
+        MainApp.primaryStage = primaryStage;
+        MainApp.primaryStage.setTitle("Cloud VV");
 
-        streamStart();
+        streamsStart();
 
         autorizationView();
-
     }
 
-    private static void streamStart(){
+    private static void streamsStart(){
         initStream = new InitStream();
-        initStream.setDaemon(true);
         initStream.start();
     }
 
@@ -64,10 +68,7 @@ public class MainApp extends Application {
             e.printStackTrace();
         }
         authorizationStage.setResizable(false);
-        authorizationStage.setOnCloseRequest(event -> {
-            Platform.exit();
-            initStream.getSysOutHandler().sendCommand(PkgCommands.END);
-        });
+        setCloseAction(authorizationStage);
         authorizationStage.showAndWait();
 
     }
@@ -81,29 +82,25 @@ public class MainApp extends Application {
             FXMLLoader fxmlLoader = new FXMLLoader();
             fxmlLoader.setLocation(MainApp.class.getResource("/view/RootBorderPane.fxml"));
 
-            rootLayout = (BorderPane) fxmlLoader.load();
-            scene = new Scene(rootLayout);
-            primaryStage.setScene(scene);
+            rootLayout = fxmlLoader.load();
+            primaryStage.setScene(new Scene(rootLayout));
+            setCloseAction(primaryStage);
 
         } catch (IOException e) {
             e.printStackTrace();
         }
     }
 
-    /**
-     * Показывает в корневом макете сведения об адресатах.
-     */
+    /**Запуск рабочего пространства*/
     public static void startApp() {
         try {
             initRootLayout();
 
-            // Загружаем сведения об адресатах.
             FXMLLoader loader = new FXMLLoader();
             loader.setLocation(MainApp.class.getResource("/view/FilesListView.fxml"));
-            AnchorPane personOverview = (AnchorPane) loader.load();
+            listView = loader.load();
 
-            // Помещаем сведения об адресатах в центр корневого макета.
-            rootLayout.setCenter(personOverview);
+            rootLayout.setCenter(listView);
             primaryStage.show();
 
         } catch (IOException e) {
@@ -111,12 +108,52 @@ public class MainApp extends Application {
         }
     }
 
-    public static MainApp getMainApp() {
-        return mainApp;
+    /** Установка корректного завершения потока InitStreams при закрытии приложения */
+    private static void setCloseAction(Stage stage) {
+        stage.setOnCloseRequest(event -> {
+            Platform.exit();
+            try {
+                System.out.println("close-1");
+                isClosed = true;
+                initStream.close();
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+
+        });
     }
 
-    public void setAuthorized(boolean authorized) {
-        this.authorized = authorized;
+    /** Инициализация модульного окна AddFilesView */
+    private static void initAddFilesView() {
+        FXMLLoader fxmlLoader = new FXMLLoader();
+        fxmlLoader.setLocation(MainApp.class.getResource("/view/AddFilesView.fxml"));
+        try {
+            addFilesView = fxmlLoader.load();
+        } catch (IOException e) {
+            e.printStackTrace();
+            System.out.println("!!!RootController.addFileAction IOEx");
+        }
+    }
+
+    /** Установка модульного окна AddFilesView в корневую панель */
+    public static void setAddFilesViewOnRoot(){
+        Platform.runLater(() ->{
+            if(addFilesView == null) {
+                initAddFilesView();
+            }
+            MainApp.getRootLayout().setCenter(addFilesView);
+        });
+    }
+
+    /** Установка модульного окна FilesListView в корневую панель */
+    public static void setListViewOnRoot() {
+        Platform.runLater(() ->{
+            MainApp.getRootLayout().setCenter(listView);
+        });
+    }
+
+    public static Stage getPrimaryStage() {
+        return primaryStage;
     }
 
     public static Stage getAuthorizationStage() {
@@ -134,4 +171,10 @@ public class MainApp extends Application {
     public static BorderPane getRootLayout() {
         return rootLayout;
     }
+
+    public static FileChooser getFileChooser() {
+        return FILE_CHOOSER;
+    }
+
+
 }

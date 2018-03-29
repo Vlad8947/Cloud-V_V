@@ -1,27 +1,39 @@
 package client.stream;
 
-import client.handler.SysInHandler;
+import client.handler.DataOutHandler;
+import client.handler.InHandler;
 import client.handler.SysOutHandler;
+import common.pkg.PkgCommands;
 
 import java.io.*;
 import java.net.Socket;
+
+/**
+ * Класс-поток для инициализации потоков приёма/передачи пакетов и их обработчиков.
+ * В методе run() открывается блок try-with-resources, где в ресурсах прописаны инициализации соккета и
+ * потоков ввода/вывода.
+ * Создавшийся поток, по окончанию инициализаций, ожидает уведомления (метод close()) для своего завершения.
+ * Метод close() вызывается при намеренном завершении программы (либо, если дочерний поток поймал Exception) и
+ * осуществляет корректное закрытие всех дочерних потоков, включая себя.
+ */
 
 public class InitStream extends Thread {
 
     private final String HOST = "localhost";
     private final int SYS_PORT = 8189;
-    private final int DATA_PORT = 8190;
 
-    private ObjectOutputStream sysObjectOutputStream;
-    private ObjectInputStream sysObjectInputStream;
+    private ObjectOutputStream objectOutputStream;
+    private ObjectInputStream objectInputStream;
 
-    private SysInStream sysInStream;
-    private DataInStream dataInStream;
-    private SysOutStream sysOutStream;
-    private DataOutStream dataOutStream;
+    private InStream inStream;
+    private OutStream outStream;
 
-    private SysInHandler sysInHandler;
+    private DataOutHandler dataOutHandler;
+
+    private InHandler inHandler;
     private SysOutHandler sysOutHandler;
+
+    private boolean isClosed = false;
 
 
     public InitStream() {
@@ -35,22 +47,22 @@ public class InitStream extends Thread {
         try
         (   /** Streams initialization */
             Socket socket = new Socket(HOST, SYS_PORT);
-            ObjectOutputStream sysObjectOutputStream = new ObjectOutputStream(socket.getOutputStream());
-            ObjectInputStream sysObjectInputStream = new ObjectInputStream(socket.getInputStream());
+            ObjectOutputStream objectOutputStream = new ObjectOutputStream(socket.getOutputStream());
+            ObjectInputStream objectInputStream = new ObjectInputStream(socket.getInputStream());
         )
         {
             System.out.println("StrInit start");
 
-            this.sysObjectOutputStream = sysObjectOutputStream;
-            this.sysObjectInputStream = sysObjectInputStream;
+            this.objectOutputStream = objectOutputStream;
+            this.objectInputStream = objectInputStream;
 
-            sysOutStream = new SysOutStream(sysObjectOutputStream);
-            sysOutHandler = new SysOutHandler(sysOutStream);
-            sysInHandler = new SysInHandler(sysOutHandler);
+            OutStream.init(this.objectOutputStream);
+            dataOutHandler = new DataOutHandler(this);
+            inHandler = new InHandler(sysOutHandler);
 
-            sysInStream = new SysInStream(sysObjectInputStream, sysInHandler);
-            sysInStream.setDaemon(true);
-            sysInStream.start();
+            inStream = new InStream(objectInputStream, inHandler);
+            inStream.setDaemon(true);
+            inStream.start();
 
             try {
                 synchronized (this) {
@@ -62,56 +74,42 @@ public class InitStream extends Thread {
 
         }
         catch (IOException e) {
-            e.printStackTrace();
+            if(!isClosed) {
+                e.printStackTrace();
+            }
         }
         finally {
-            System.out.println("InitStream final");
+            System.out.println("InitStream finally");
         }
 
     }
 
-
     /** Корректное завершение сокета */
-    public void close () {
-
-        sysInStream.close();
-
+    public void close() {
+        inStream.close();
+        SysOutHandler.sendCommand(PkgCommands.END);
         synchronized (this) {
             this.notify();
         }
     }
 
-
-    public ObjectOutputStream getSysObjectOutputStream() {
-        return sysObjectOutputStream;
+    public InStream getInStream() {
+        return inStream;
     }
 
-    public ObjectInputStream getSysObjectInputStream() {
-        return sysObjectInputStream;
+    public OutStream getOutStream() {
+        return outStream;
     }
 
-    public SysInStream getSysInStream() {
-        return sysInStream;
-    }
-
-    public DataInStream getDataInStream() {
-        return dataInStream;
-    }
-
-    public SysOutStream getSysOutStream() {
-        return sysOutStream;
-    }
-
-    public DataOutStream getDataOutStream() {
-        return dataOutStream;
-    }
-
-    public SysInHandler getSysInHandler() {
-        return sysInHandler;
+    public InHandler getInHandler() {
+        return inHandler;
     }
 
     public SysOutHandler getSysOutHandler() {
         return sysOutHandler;
     }
 
+    public DataOutHandler getDataOutHandler() {
+        return dataOutHandler;
+    }
 }

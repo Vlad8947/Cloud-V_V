@@ -1,6 +1,8 @@
 package gui.controller;
 
 import client.handler.SysOutHandler;
+import client.stream.OutStream;
+import common.pkg.AuthPkg;
 import gui.Dialogs;
 import gui.MainApp;
 
@@ -8,24 +10,26 @@ import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.Node;
-import javafx.scene.control.Button;
-import javafx.scene.control.Label;
-import javafx.scene.control.PasswordField;
-import javafx.scene.control.TextField;
+import javafx.scene.control.*;
 import javafx.scene.layout.AnchorPane;
 
 import java.net.URL;
 import java.util.LinkedList;
 import java.util.ResourceBundle;
 
-public class AuthorizationController implements Initializable {
+/**
+ * Класс-контроллер, осуществляющий функционал AuthorizationAnchorPane.fxml .
+ */
 
-    @FXML
-    private AnchorPane authorizationPane;
+public class AuthorizationController implements Initializable {
 
     @FXML
     private Label statusLabel;
     private final String defaultStatusLabal = "Enter login/password";
+    @FXML
+    private ToggleButton toggleAuth;
+    @FXML
+    private ToggleButton toggleReg;
     @FXML
     private TextField loginField;
     @FXML
@@ -34,8 +38,8 @@ public class AuthorizationController implements Initializable {
     private Button connectButton;
 
     private static LinkedList<Node> interfaceList;
+    private ToggleGroup toggleAuthGroup;
 
-    private MainApp mainApp;
     private String login;
     private String password;
 
@@ -44,9 +48,13 @@ public class AuthorizationController implements Initializable {
 //        mainApp = MainApp.getMainApp();
         interfaceList = new LinkedList<>();
         fillInterfaceList();
+        toggleAuthGroup = new ToggleGroup();
+        toggleAuth.setToggleGroup(toggleAuthGroup);
+        toggleReg.setToggleGroup(toggleAuthGroup);
     }
 
-    /**ConnectButton onAction*/
+    /**Button "Connect"
+     * Send login and pass for*/
     @FXML
     private void connect(){
 
@@ -55,14 +63,12 @@ public class AuthorizationController implements Initializable {
         login = loginField.getText();
         password = passwordField.getText();
 
-        System.out.println("login = " + login + ", pass = " + password);
-
         if (login.isEmpty() || password.isEmpty()){
             Dialogs.nullField();
             enableInterface();
         }
         else {
-            MainApp.getInitStream().getSysOutHandler().sendAuthorization(login, password);
+            SysOutHandler.sendAuthorization(toggleReg.isSelected(), login, password);
         }
 
     }

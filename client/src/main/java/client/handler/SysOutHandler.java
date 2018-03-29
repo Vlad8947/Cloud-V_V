@@ -1,23 +1,31 @@
 package client.handler;
 
-import client.stream.SysOutStream;
+import client.stream.OutStream;
 import common.pkg.AuthPkg;
 import common.pkg.Pkg;
 import common.pkg.PkgCommands;
 
+/**
+ * Класс-синглтон посредник для упаковки команд в Pkg и последующей отправки в OutStream.
+ */
+
 public class SysOutHandler {
 
-    private SysOutStream sysOutStream;
+//    private static OutStream outStream;
 
-    public SysOutHandler(SysOutStream sysOutStream) {
-        this.sysOutStream = sysOutStream;
+    private SysOutHandler() {
+//        this.outStream = outStream;
     }
 
-    public void sendCommand(PkgCommands command){
-        sysOutStream.put(new Pkg(command));
+    public static void init(){
+        new SysOutHandler();
     }
 
-    public void sendAuthorization(String login, String password) {
-        sysOutStream.put(new AuthPkg(login, password));
+    public static void sendCommand(PkgCommands command){
+        OutStream.sendPkg(new Pkg(command));
+    }
+
+    public static void sendAuthorization(boolean registration, String login, String password) {
+        OutStream.sendPkg(new AuthPkg(registration, login, password));
     }
 }
